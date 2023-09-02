@@ -1,6 +1,7 @@
 const { sign } = require("jsonwebtoken")
 const { User } = require("../models/User")
 const { Cart } = require("../models/Cart")
+const { updateUser } = require("../services/user.service")
 
 class UserController {
 	async create(req, res) {
@@ -65,11 +66,9 @@ class UserController {
 			}
 
 			if (!name) {
-				return res
-					.status(400)
-					.send({
-						message: "Nenhum campo informado é válido para a alteração.",
-					})
+				return res.status(400).send({
+					message: "Nenhum campo informado é válido para a alteração.",
+				})
 			}
 
 			if (name === user.name) {
@@ -78,7 +77,8 @@ class UserController {
 					.send({ message: "Usuário já utiliza esse nome." })
 			}
 
-			await User.update({ name }, { where: {userId} })
+			await updateUser(userId, { name })
+			// await User.update({ name }, { where: {userId} })
 
 			return res.status(204).send()
 		} catch (error) {
@@ -138,6 +138,35 @@ class UserController {
 		} catch (error) {
 			return res.status(400).send({
 				message: "Erro ao listar o usuário",
+				cause: error.message,
+			})
+		}
+	}
+
+	async updatePassword(req, res) {
+		try {
+			const { userId } = req.params
+			const { password } = req.body
+
+			const user = await User.findByPk(userId)
+
+			if (!user) {
+				return res.status(404).send({ message: "usuário não encontrado." })
+			}
+
+			const match = bcrypt.compareSync(password, user.password)
+			if (match) {
+				return res
+					.status(400)
+					.json({ error: "A senha já está sendo usada." })
+			}
+
+			await this.update(userId, { password })
+
+			return res.status(204).send()
+		} catch (error) {
+			return res.status(400).send({
+				message: "Erro ao realizar o update de senha do usuário",
 				cause: error.message,
 			})
 		}
